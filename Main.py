@@ -1,22 +1,64 @@
 from tkinter import *
 from tkinter import messagebox
 import mysql.connector
+from tkinter import simpledialog
 
 background = "#06283D"
 framebg = "#EDEDED"
 framefg = "06283D"
 
+# Database configuration
+# Note: Update these values according to your MySQL setup
+DB_CONFIG = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': 'your_mysql_password_here',  # Change this to your MySQL root password
+    'database': 'student'
+}
 
-mydatabase = mysql.connector.connect(host = 'localhost', user = 'root', password = 'Manoragavi-2517') # Connecting to the database
-mycur = mydatabase.cursor()
-print("Connected to Database")
+def get_database_connection():
+    """Create and return a database connection"""
+    try:
+        db = mysql.connector.connect(**DB_CONFIG)
+        return db
+    except mysql.connector.Error as err:
+        messagebox.showerror("Database Error", f"Failed to connect to database: {err}")
+        return None
 
-querry_create_db = "CREATE DATABASE IF NOT EXISTS student"
-querry_use_db = "use student"
-querry_create_table = "create table if not exists login (rollnumber int(10), username VARCHAR(255), password VARCHAR(255), admissionno int(10), class VARCHAR(10), phnumber VARCHAR(10), email VARCHAR(255), city VARCHAR(100), hobby VARCHAR(255), result int(10))"
-mycur.execute(querry_create_db)
-mycur.execute(querry_use_db)
-mycur.execute(querry_create_table)
+# Initialize database
+try:
+    mydatabase = mysql.connector.connect(host=DB_CONFIG['host'], user=DB_CONFIG['user'], password=DB_CONFIG['password'])
+    mycur = mydatabase.cursor()
+    # Create database if it doesn't exist
+    mycur.execute("CREATE DATABASE IF NOT EXISTS student")
+    mycur.execute("USE student")
+    # Create login table if it doesn't exist
+    mycur.execute("""CREATE TABLE IF NOT EXISTS login (
+                    admission_number VARCHAR(255) PRIMARY KEY,
+                    username VARCHAR(255) UNIQUE NOT NULL,
+                    roll_number VARCHAR(255),
+                    class_sec VARCHAR(255),
+                    phone_number VARCHAR(255),
+                    email VARCHAR(255),
+                    city VARCHAR(255),
+                    hobby VARCHAR(255),
+                    result VARCHAR(255),
+                    password VARCHAR(255) NOT NULL
+                  )""")
+    mycur.close()
+    mydatabase.close()
+except mysql.connector.Error as err:
+    print(f"Database initialization error: {err}")
+    print("Connected to Database")
+    
+    querry_create_db = "CREATE DATABASE IF NOT EXISTS student"
+    querry_use_db = "use student"
+    querry_create_table = "create table if not exists login (rollnumber int(10), username VARCHAR(255), password VARCHAR(255), admissionno int(10), class VARCHAR(10), phnumber VARCHAR(10), email VARCHAR(255), city VARCHAR(100), hobby VARCHAR(255), result int(10))"
+    mycur.execute(querry_create_db)
+    mycur.execute(querry_use_db)
+    mycur.execute(querry_create_table)
+except mysql.connector.Error as err:
+    messagebox.showerror("Database Initialization Error", f"Failed to initialize database: {err}")
 
 exit_mode = False
 
@@ -412,17 +454,34 @@ while not exit_mode:
                 hobby = userhobby.get()
                 result = userresult.get()
                 
-                
-                querry_insert_val = "INSERT INTO login VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                values = (rollno, username, password, admissionno, classandsec, phno, email, city, hobby, result)
-                mycur.execute(querry_insert_val, values)
-                mydatabase.commit()
-                messagebox.showinfo("Connection", "Registered Successfully")
-                messagebox.showinfo("Connection", "You can now Login!!!")
-                
-                regtkin.destroy()
-                #messagebox.showerror("Connection", "User Already Exists")
-                #return
+                try:
+                    # Get a fresh database connection for this operation
+                    db = get_database_connection()
+                    if db is None:
+                        return
+                    
+                    cursor = db.cursor()
+                    querry_insert_val = "INSERT INTO login VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                    values = (rollno, username, password, admissionno, classandsec, phno, email, city, hobby, result)
+                    cursor.execute(querry_insert_val, values)
+                    db.commit()
+                    messagebox.showinfo("Connection", "Registered Successfully")
+                    messagebox.showinfo("Connection", "You can now Login!!!")
+                    cursor.close()
+                    db.close()
+                    regtkin.destroy()
+                except mysql.connector.Error as e:
+                    messagebox.showerror("Database Error", f"Registration Failed: {str(e)}")
+                    if 'cursor' in locals():
+                        cursor.close()
+                    if 'db' in locals():
+                        db.close()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Registration Failed: {str(e)}")
+                    if 'cursor' in locals():
+                        cursor.close()
+                    if 'db' in locals():
+                        db.close()
 
         registerbutton = Button(regtkin,text = "SUBMIT", bg = "#6237CF", fg = "#fff", width = 50, height = 2, command=submit)
         registerbutton.place(x=470, y=660)
@@ -438,48 +497,90 @@ while not exit_mode:
             messagebox.showerror("Entry Error", "Type Username and Password")
         else:
             try:
-                mydb = mysql.connector.connect(host = 'localhost', user = 'root', password = 'Manoragavi-2517', database = "student")
-                mycursor = mydb.cursor()
-                print("Connected to Database")
-            except:
-                messagebox.showerror("Connection", "Database connection not establish")
-                return
+                # Get a fresh database connection for this operation
+                db = get_database_connection()
+                if db is None:
+                    return
+                
+                cursor = db.cursor()
+                command = "select * from login where username=%s and password=%s"
+                cursor.execute(command, (username, password))
+                myresult = cursor.fetchone()
+                cursor.close()
+                db.close()
 
-            command = "use student"
-            mycursor.execute(command)
-            
-            command = "select * from login where username=%s and password=%s"
-            mycursor.execute(command, (username, password))
-            myresult = mycursor.fetchone()
+                if myresult == None:
+                    messagebox.showinfo("Invalid", "Invalid UserID or Password")
+                    trial()
 
-            if myresult == None:
-                messagebox.showinfo("Invalid", "Invalid UserID or Password")
-                trial()
+                else:
+                    messagebox.showinfo("Login", "Successfully Logined!!!")
+                    root.destroy()
 
-            else:
-                messagebox.showinfo("Login", "Successfully Logined!!!")
-                root.destroy()
-
-                # Details Window
-                tkin = Tk()
-                tkin.title("Login System")
-                tkin.geometry("1280x720")
-                tkin.config(bg = background)
-                tkin.resizable(False,False)
-                image_icon = PhotoImage(file = "images\\loginn.png")
-                tkin.iconphoto(False, image_icon)
-                frame = Frame(tkin, bg="red")
-                frame.pack(fill=Y)
-                backgroundimage = PhotoImage(file = "images\\Details.png")
-                Label(frame,image=backgroundimage).pack()
+                    # Details Window
+                    tkin = Tk()
+                    tkin.title("Login System")
+                    tkin.geometry("1280x720")
+                    tkin.config(bg = background)
+                    tkin.resizable(False,False)
+                    image_icon = PhotoImage(file = "images\\loginn.png")
+                    tkin.iconphoto(False, image_icon)
+                    frame = Frame(tkin, bg="red")
+                    frame.pack(fill=Y)
+                    backgroundimage = PhotoImage(file = "images\\Details.png")
+                    Label(frame,image=backgroundimage).pack()
 
     # Details about user
-                topic = f"Details About {myresult[1]}"
-                label = Label(tkin, 
-                            text=topic, 
-                            fg = "#fff", 
-                            bg = "#5FC7FC", 
-                            font = ('Arial', 24, 'bold'))
+                    topic = f"Details About {myresult[1]}"
+                    label = Label(tkin, 
+                                text=topic, 
+                                fg = "#fff", 
+                                bg = "#5FC7FC", 
+                                font = ('Arial', 24, 'bold'))
+                    label.place(x=500, y=10)
+
+                    detail = f"Admission Number : {myresult[0]}\nRoll Number : {myresult[2]}\nClass & Sec : {myresult[3]}\nPhone Number : {myresult[4]}\nEmail : {myresult[5]}\nCity : {myresult[6]}\nHobby : {myresult[7]}\nResult : {myresult[8]}"
+                    label = Label(tkin, 
+                                text=detail, 
+                                fg = "#fff", 
+                                bg = "#155CA2", 
+                                borderwidth=5, 
+                                relief="groove",
+                                font = ('Arial', 20, 'bold'), 
+                                width=22)
+                    label.place(x=700, y=605)
+
+                    tkin.mainloop()
+            except mysql.connector.Error as e:
+                messagebox.showerror("Database Error", f"Login Failed: {str(e)}")
+                if 'cursor' in locals():
+                    cursor.close()
+                if 'db' in locals():
+                    db.close()
+            except Exception as e:
+                messagebox.showerror("Error", f"Login Failed: {str(e)}")
+                if 'cursor' in locals():
+                    cursor.close()
+                if 'db' in locals():
+                    db.close()
+                    tkin.title("Login System")
+                    tkin.geometry("1280x720")
+                    tkin.config(bg = background)
+                    tkin.resizable(False,False)
+                    image_icon = PhotoImage(file = "images\\loginn.png")
+                    tkin.iconphoto(False, image_icon)
+                    frame = Frame(tkin, bg="red")
+                    frame.pack(fill=Y)
+                    backgroundimage = PhotoImage(file = "images\\Details.png")
+                    Label(frame,image=backgroundimage).pack()
+
+        # Details about user
+                    topic = f"Details About {myresult[1]}"
+                    label = Label(tkin, 
+                                text=topic, 
+                                fg = "#fff", 
+                                bg = "#5FC7FC", 
+                                font = ('Arial', 24, 'bold'))
                 label.place(x=500, y=70)
     # UserName
                 label = Label(tkin, 
@@ -670,6 +771,10 @@ while not exit_mode:
                 label.place(x=700, y=605)
 
                 tkin.mainloop()
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred: {str(e)}")
+                if 'tkin' in locals():
+                    tkin.destroy()
 
     #Window
     root = Tk()
