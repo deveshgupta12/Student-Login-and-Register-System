@@ -23,16 +23,17 @@ fi
 if [ ! -f ".venv/bin/python" ]; then
   echo "[INFO] Creating virtual environment..."
   "$PY_CMD" -m venv .venv
+  if [ ! -f ".venv/bin/python" ]; then
+    echo "[ERROR] Failed to create virtual environment."
+    exit 1
+  fi
 fi
 
-echo "[INFO] Activating virtual environment..."
-source .venv/bin/activate
-
 echo "[INFO] Upgrading pip..."
-python -m pip install --upgrade pip
+.venv/bin/python -m pip install --upgrade pip
 
 echo "[INFO] Installing project dependencies..."
-pip install -r requirements.txt
+.venv/bin/pip install -r requirements.txt
 
 echo
 echo "[SUCCESS] Installation completed successfully."
