@@ -39,7 +39,13 @@ fi
 # Create virtual environment
 if [ ! -f ".venv/bin/python" ]; then
   echo "[INFO] Creating virtual environment..."
-  "$PY_CMD" -m venv .venv --upgrade-deps
+  # Try with --upgrade-deps first (Python 3.9+)
+  "$PY_CMD" -m venv .venv --upgrade-deps 2>/dev/null || \
+  # Fallback: create with system-site-packages to access system pip
+  "$PY_CMD" -m venv .venv --system-site-packages || \
+  # Last resort: basic venv
+  "$PY_CMD" -m venv .venv
+  
   if [ ! -f ".venv/bin/python" ]; then
     echo "[ERROR] Failed to create virtual environment."
     echo "Try installing: sudo apt-get install python3-full"
@@ -47,17 +53,24 @@ if [ ! -f ".venv/bin/python" ]; then
   fi
 fi
 
-# Verify pip is available
+# Verify and install pip if needed
 if ! .venv/bin/python -c "import pip" 2>/dev/null; then
-  echo "[INFO] pip not in venv, bootstrapping..."
-  .venv/bin/python -m ensurepip --upgrade || {
-    echo "[ERROR] Could not bootstrap pip in venv."
-    echo "Try one of these:"
-    echo "  1. sudo apt-get install python3-full"
-    echo "  2. sudo apt-get install python3-pip"
-    echo "Then rerun: bash install.sh"
-    exit 1
-  }
+  echo "[INFO] Pip not found, copying from system..."
+  if command -v pip3 >/dev/null 2>&1; then
+    # If system pip is available, upgrade it in venv
+    pip3 install --target .venv/lib/python*/site-packages --upgrade pip 2>/dev/null || \
+    .venv/bin/python -m ensurepip --upgrade 2>/dev/null || {
+      echo "[ERROR] Could not bootstrap pip in venv."
+      echo "Try installing: sudo apt-get install python3-full"
+      exit 1
+    }
+  else
+    .venv/bin/python -m ensurepip --upgrade || {
+      echo "[ERROR] Could not bootstrap pip in venv."
+      echo "Try installing: sudo apt-get install python3-full"
+      exit 1
+    }
+  fi
 fi
 
 echo "[INFO] Upgrading pip..."
