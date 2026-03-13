@@ -27,6 +27,30 @@ This Python application provides a simple student login and registration system 
 
 ## Installation and Setup
 
+### One-click installation (Windows)
+
+1. Double-click `install.bat`.
+2. Wait until the script finishes installing dependencies.
+3. Run the app using:
+    ```bash
+    .venv\Scripts\python Main.py
+    ```
+
+### Linux CLI installation
+
+1. Make the installer executable:
+    ```bash
+    chmod +x install.sh
+    ```
+2. Run the installer:
+    ```bash
+    ./install.sh
+    ```
+3. Run the app using:
+    ```bash
+    .venv/bin/python Main.py
+    ```
+
 1. **Prerequisites:**
     * Ensure you have Python 3 installed.
     * Install the necessary libraries:
