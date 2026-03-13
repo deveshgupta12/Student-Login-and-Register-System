@@ -29,6 +29,13 @@ if [ ! -f ".venv/bin/python" ]; then
   fi
 fi
 
+echo "[INFO] Bootstrapping pip in virtual environment..."
+.venv/bin/python -m ensurepip --upgrade
+if [ $? -ne 0 ]; then
+  echo "[ERROR] Failed to bootstrap pip."
+  exit 1
+fi
+
 echo "[INFO] Upgrading pip..."
 .venv/bin/python -m pip install --upgrade pip
 
