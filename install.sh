@@ -23,8 +23,15 @@ echo "[INFO] Using: $PY_CMD"
 echo "[INFO] Python version:"
 "$PY_CMD" --version
 
-# Remove existing venv if needed
-if [ -d ".venv" ] && [ ! -f ".venv/bin/python" ]; then
+# Check if python3-full is available (needed for venv with pip on Debian/Ubuntu)
+if ! "$PY_CMD" -c "import venv" 2>/dev/null; then
+  echo "[ERROR] venv module not available."
+  echo "Try installing: sudo apt-get install python3-venv"
+  exit 1
+fi
+
+# Remove existing venv if incomplete
+if [ -d ".venv" ] && [ ! -f ".venv/bin/pip" ] && [ ! -f ".venv/bin/python" ]; then
   echo "[INFO] Removing incomplete virtual environment..."
   rm -rf .venv
 fi
@@ -32,28 +39,26 @@ fi
 # Create virtual environment
 if [ ! -f ".venv/bin/python" ]; then
   echo "[INFO] Creating virtual environment..."
-  "$PY_CMD" -m venv .venv
+  "$PY_CMD" -m venv .venv --upgrade-deps
   if [ ! -f ".venv/bin/python" ]; then
     echo "[ERROR] Failed to create virtual environment."
-    echo "Try installing: sudo apt-get install python3-venv"
+    echo "Try installing: sudo apt-get install python3-full"
     exit 1
   fi
 fi
 
-# Bootstrap pip
-echo "[INFO] Installing pip..."
-.venv/bin/python -m ensurepip --default-pip 2>/dev/null || \
-.venv/bin/python -m ensurepip 2>/dev/null || \
-{
-  echo "[WARNING] ensurepip failed, trying system pip..."
-  "$PY_CMD" -m pip install --user --upgrade pip
-  .venv/bin/python -m pip install --upgrade pip || {
-    echo "[ERROR] Could not install pip. Try manually:"
-    echo "  sudo apt-get install python3-pip"
-    echo "  Then rerun this script"
+# Verify pip is available
+if ! .venv/bin/python -c "import pip" 2>/dev/null; then
+  echo "[INFO] pip not in venv, bootstrapping..."
+  .venv/bin/python -m ensurepip --upgrade || {
+    echo "[ERROR] Could not bootstrap pip in venv."
+    echo "Try one of these:"
+    echo "  1. sudo apt-get install python3-full"
+    echo "  2. sudo apt-get install python3-pip"
+    echo "Then rerun: bash install.sh"
     exit 1
   }
-}
+fi
 
 echo "[INFO] Upgrading pip..."
 .venv/bin/python -m pip install --upgrade pip
